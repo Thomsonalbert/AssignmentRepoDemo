@@ -1,0 +1,64 @@
+Ideas
+
+Online therapist chat box - Mood tracking, guided therapy, journaling, some way to monitor or flag concerning behavior and can connect to a licensed therapist whenever needed
+Medication management - App that helps patients keep track of prescriptions, sends reminders for doses, and shows possible interactions with current medications
+Symptom checker -
+
+Patient Symptoms Finder - this could be an app that helps patients schedule an appointment based on the symptoms that they have. Patients can describe the symptoms and we can use AI to analyze it and see what the possible remedies are or if urgent care is needed.
+Calorie Tracker - We can create an app that calculates the calories from the food that you take a picture of. We can also have the app show different types of food that you can have for a balanced diet.
+
+Nutrition tracker - 
+Rehabilitation coach - motion tracking app that guides patients through physical therapy exercises at home, reports progress
+AI X-ray / radiology assistant - diagnostic support tool using machine learning to analyze medical images and highlight suspicious regions.
+
+
+
+Aaron- Hey guys, I’m not sure if this really counts as “healthcare,” but I’ll throw it out there anyway. You know when you try to upload a document or some kind of media to a system, and it either doesn’t accept the format or the file is way too big? Then you have to stop what you’re doing and mess around with converting it to the right format or shrinking the file. Super annoying, especially now that Apple switched over to that HEIC photo format. In older healthcare systems, like the ones hospitals and local doctor offices still use, this problem happens like everytime. A lot of those systems haven’t been updated since the 80s, and smaller offices usually can’t handle big files like PDFs. So here’s my idea: what if we built a media conversion tool just for healthcare? No matter what file gets uploaded, it would automatically turn it into the format and size that the hospital or office needs. It would save the person uploading the headache and make sure the hospital gets a file it can actually use.
+
+Aaron- Hey guys, another idea that is more healthcare needs based.So the idea is basically a hospital helper program that lives on a take home tablet for patients who get overwhelmed with medical stuff. Think about someone who just got diagnosed with cancer — suddenly they’ve got three different doctors, tons of meds, and notes full of jargon they can’t make sense of. The app would live on a take-home tablet, connect to their MyChart over Wi-Fi, and automatically pull in all their info. Then it would translate the doctor notes and instructions into plain English, show who each doctor is and what they actually do, and remind patients when and how to take their meds. It could even adjust to different literacy levels, so whether someone just wants the basics or a little more detail, they can actually follow what’s going on. It’s kind of like a digital care buddy that fills the gap when hospitals don’t have enough staff to guide people through everything.
+
+Aryan -
+I got some ideas from GPT and pasted them below I think they are pretty good:
+
+Medication Reminder App
+ A mobile app that sends daily reminders for patients to take their medications and tracks adherence.
+
+
+Chronic Disease Tracker
+ An app for patients with conditions like diabetes or Crohn’s disease to log symptoms and share reports with doctors.
+
+
+Mental Wellness Journal
+ A simple mood-tracking and journaling app with guided breathing exercises for stress and anxiety.
+
+
+Telemedicine Appointment Scheduler
+ A platform where patients can book, reschedule, and receive reminders for online doctor visits.
+
+
+Emergency Health Info Card
+ An app that stores a patient’s allergies, medications, and emergency contacts for quick access during emergencies.
+
+
+Rehab Exercise Tracker
+ A tool that helps patients recovering from surgery follow physical therapy routines and track progress.
+
+
+Child Vaccination Tracker
+ An app for parents to store vaccination records, get alerts for upcoming doses, and generate official reports.
+
+
+AI Drug Interaction Checker
+ A web tool where patients input their medications to check for harmful interactions automatically.
+
+
+Remote Health Monitor
+ A simple dashboard that collects and displays data from wearables (like heart rate or steps) for patients and doctors.
+
+
+Diet & Nutrition Planner for Patients
+ A diet-tracking app that suggests meal plans for conditions like hypertension or diabetes, with daily nutrition alerts.
+
+
+Aaron - I think all these are great, what if we did a combo of 1 and 2 at top? Mental health and med management, here is a flow chart
+
