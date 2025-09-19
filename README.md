@@ -5,7 +5,7 @@ My groupmembers are:
 - Sage Paz
 - Rafiq Afrifa
 - Aryan Abasthi
-- afablegp@vcu.edu
+- Giancarlo Afable
 
 
 ------------------ Fill in some information about your project under this ------------------
