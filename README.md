@@ -3,7 +3,7 @@ My groupmembers are:
 - Aaron Tuck
 - Albert Thomson
 - Sage Paz
-- afrifark@vcu.edu
+- Rafiq Afrifa
 - Aryan Abasthi
 - afablegp@vcu.edu
 
