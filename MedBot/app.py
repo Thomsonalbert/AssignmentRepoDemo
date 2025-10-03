@@ -1,12 +1,13 @@
 import os, gradio as gr
 from dotenv import load_dotenv
 from openai import OpenAI
+from auth import register_user, login_user   # auth.py handles authentication
 
 # ---- Load API key ----
 load_dotenv("med_storage")
 api_key = os.getenv("OPENAI_API_KEY")
 if not api_key:
-    raise ValueError("❌ OPENAI_API_KEY not found in med_storage")
+    raise ValueError("ERROR: OPENAI_API_KEY not found in med_storage")
 client = OpenAI(api_key=api_key)
 
 # ---- System prompts ----
@@ -20,19 +21,22 @@ SYS_MEDICAL = (
 # ---- Safety terms ----
 EMERGENCY_TERMS = {"chest pain","shortness of breath","stroke","unconscious",
                    "suicidal","overdose","severe bleeding","anaphylaxis",
-                   "cant breathe","can't breathe", "kill myself", "computer science student"}
+                   "cant breathe","can't breathe", "kill myself"}
 DOSING_TERMS = {"dose","dosage","mg","milligram","prescribe","prescription","titrate"}
 MEDICAL_KEYWORDS = {"side effect","contraindication","symptom","diagnosis","medication","drug",
                     "hypertension","diabetes","asthma","antibiotic","antihistamine","statin",
                     "interaction","blood pressure","fever","rash","allergy"}
 
+# ---- Session state (tracks login) ----
+session_state = {"logged_in": False, "user": None}
+
 # ---- Safety + routing ----
 def safety_gate(text: str) -> str | None:
     t = text.lower()
     if any(k in t for k in EMERGENCY_TERMS):
-        return " Emergency detected. Call 911 or seek immediate medical help."
+        return "ERROR: Emergency detected. Call 911 or seek immediate medical help."
     if any(k in t for k in DOSING_TERMS):
-        return " Dosing/prescription request detected. Consult a licensed clinician."
+        return "ERROR: Dosing/prescription request detected. Consult a licensed clinician."
     return None
 
 def route(text: str) -> str:
@@ -44,103 +48,119 @@ def openai_generate(system_prompt: str, user_text: str) -> str:
         model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_text}
+            {"role": "user", "content": user_text},
         ],
-        max_tokens=256,
-        temperature=0.2
     )
     return response.choices[0].message.content.strip()
 
-def generate_general(user_text: str) -> str:
-    return openai_generate(SYS_GENERAL, user_text)
+# ---- Chatbot interface ----
+def chatbot_interface(user_message, history=[]):
+    if not session_state["logged_in"]:
+        history = history + [(user_message, "ERROR: Please log in first.")]
+        return history, history
 
-def generate_medical(user_text: str) -> str:
-    return openai_generate(SYS_MEDICAL, user_text)
+    msg = user_message.lower()
 
-def respond(user_text, history):
-    guard = safety_gate(user_text)
-    if guard:
-        reply, used = guard, "safety"
-    else:
-        if route(user_text) == "medical":
-            reply, used = generate_medical(user_text), "medical"
+    # --- Crisis detection ---
+    if any(k in msg for k in ["suicide", "kill myself", "end my life", "can't go on"]):
+        response = (
+            "CRISIS DETECTED: Please call 911 or dial 988 (Suicide & Crisis Lifeline) immediately.\n"
+            "You may also reach out to VCU Counseling Services: https://counseling.vcu.edu/"
+        )
+        history = history + [(user_message, response)]
+        return history, history
+
+    # --- Therapy distress detection ---
+    if history and "Try grounding techniques" in history[-1][1]:
+        if "not working" in msg:
+            response = (
+                "It seems the grounding strategies aren’t helping. "
+                "Please consider reaching out to a professional: https://counseling.vcu.edu/"
+            )
+            history = history + [(user_message, response)]
+            return history, history
+        elif any(k in msg for k in ["working", "better", "helped"]):
+            response = (
+                "I’m glad to hear the grounding techniques are helping! "
+                "Remember, you can always return to them whenever you feel overwhelmed."
+            )
+            history = history + [(user_message, response)]
+            return history, history
         else:
-            reply, used = generate_general(user_text), "general"
-    history = history + [(user_text, f"[{used}] {reply}")]
-    return history, ""
+            response = (
+                "It seems you're still feeling distressed. "
+                "Please consider reaching out to a professional: https://counseling.vcu.edu/"
+            )
+            history = history + [(user_message, response)]
+            return history, history
 
-# ---- Login validation ----
-def validate_login(username, password):
-    if not username or not password:
-        return False, "All fields are required."
-    if not username.endswith("@vcu.edu"):
-        return False, "Username must be a valid vcu.edu email."
-    if password != "admin":
-        return False, "Invalid password."
-    return True, "Login successful."
+    # Initial distress detection
+    if any(k in msg for k in ["panic", "anxiety", "overwhelmed", "stressed"]):
+        response = (
+            "Therapy Mode: I notice words that suggest distress. "
+            "Try grounding techniques: 5-4-3-2-1 method (5 things you see, 4 you touch, 3 you hear, "
+            "2 you smell, 1 you taste). Take slow breaths while doing this."
+        )
+        history = history + [(user_message, response)]
+        return history, history
 
-# ---- Build UI ----
-def build_app():
-    with gr.Blocks(css=".footer{color:#64748b;font-size:12px;text-align:center;margin-top:12px}") as app:
-        state = gr.State("login")  # tracks current screen
+    # --- Safety gate ---
+    blocked = safety_gate(user_message)
+    if blocked:
+        history = history + [(user_message, blocked)]
+        return history, history
 
-        # LOGIN SCREEN
-        with gr.Group(visible=True) as login_screen:
-            gr.Markdown("## 🔐 Login to MedBot")
-            user = gr.Textbox(label="Username", placeholder="you@vcu.edu")
-            pw = gr.Textbox(label="Password", type="password", placeholder="admin")
-            login_btn = gr.Button("Confirm")
-            cancel_btn = gr.Button("Cancel")
-            login_msg = gr.Markdown("")
+    # --- General/medical routing ---
+    mode = route(user_message)
+    system_prompt = SYS_MEDICAL if mode == "medical" else SYS_GENERAL
+    reply = openai_generate(system_prompt, user_message)
+    history = history + [(user_message, reply)]
+    return history, history
 
-        # HOME SCREEN
-        with gr.Group(visible=False) as home_screen:
-            gr.Markdown("## 🏠 MedBot Home")
-            start_btn = gr.Button("Start Conversation")
-            res_btn = gr.Button("View Resources")
-            logout_btn = gr.Button("Logout")
-            home_msg = gr.Markdown("Welcome! Choose an option.")
+# ---- Gradio UI ----
+with gr.Blocks() as demo:
+    gr.Markdown("# 🩺 MedBot – Authentication + Chat")
 
-        # CHATBOT SCREEN
-        with gr.Group(visible=False) as chat_screen:
-            gr.Markdown("### ⚠️ Disclaimer: MedBot is for educational purposes only. Not medical advice. Always consult a licensed clinician.")
-            chat = gr.Chatbot(height=460, label="Conversation")
-            box = gr.Textbox(placeholder="Ask a question…")
-            send = gr.Button("Send")
-            back_btn = gr.Button("Back to Home")
+    # --- Login Tab ---
+    with gr.Tab("Login"):
+        login_email = gr.Textbox(label="VCU Email")
+        login_password = gr.Textbox(label="Password", type="password")
+        login_button = gr.Button("Login")
+        login_output = gr.Textbox(label="Status")
 
-        # RESOURCES SCREEN
-        with gr.Group(visible=False) as res_screen:
-            gr.Markdown("### 📚 Resources\n- [CDC Health Topics](https://www.cdc.gov)\n- [NIH MedlinePlus](https://medlineplus.gov)\n")
-            back_home = gr.Button("Back to Home")
+        def handle_login(email, password):
+            result = login_user(email, password)
+            if result.startswith("SUCCESS"):
+                session_state["logged_in"] = True
+                session_state["user"] = email
+            return result
 
-        # ----- Actions -----
-        def do_login(u, p):
-            ok, msg = validate_login(u, p)
-            if ok:
-                return gr.update(visible=False), gr.update(visible=True), msg
-            return gr.update(), gr.update(), f"❌ {msg}"
+        login_button.click(handle_login, [login_email, login_password], login_output)
 
-        login_btn.click(do_login, [user, pw], [login_screen, home_screen, login_msg])
-        cancel_btn.click(lambda: ("", "", "Cancelled."), outputs=[user, pw, login_msg])
+    # --- Register Tab ---
+    with gr.Tab("Register"):
+        reg_email = gr.Textbox(label="VCU Email")
+        reg_password = gr.Textbox(label="Password", type="password")
+        reg_confirm = gr.Textbox(label="Confirm Password", type="password")
+        reg_button = gr.Button("Register")
+        reg_output = gr.Textbox(label="Status")
 
-        start_btn.click(lambda: (gr.update(visible=False), gr.update(visible=True)),
-                        outputs=[home_screen, chat_screen])
-        res_btn.click(lambda: (gr.update(visible=False), gr.update(visible=True)),
-                      outputs=[home_screen, res_screen])
-        logout_btn.click(lambda: (gr.update(visible=True), gr.update(visible=False), ""),
-                         outputs=[login_screen, home_screen, login_msg])
+        reg_button.click(register_user, [reg_email, reg_password, reg_confirm], reg_output)
 
-        send.click(respond, [box, chat], [chat, box])
-        box.submit(respond, [box, chat], [chat, box])
-        back_btn.click(lambda: (gr.update(visible=False), gr.update(visible=True)),
-                       outputs=[chat_screen, home_screen])
-        back_home.click(lambda: (gr.update(visible=False), gr.update(visible=True)),
-                        outputs=[res_screen, home_screen])
+    # --- Chat Tab (always visible, but locked until login) ---
+    with gr.Tab("Chat") as chat_tab:
+        chatbot = gr.Chatbot()
+        msg = gr.Textbox(label="Your message")
+        clear = gr.Button("Clear")
 
-        gr.HTML('<div class="footer">Built for demo • MedBot with login</div>')
+        state = gr.State([])
 
-    return app
+        msg.submit(chatbot_interface, [msg, state], [chatbot, state])
+        clear.click(lambda: ([], []), None, [chatbot, state])
+
+    # --- Resources Tab ---
+    with gr.Tab("Resources"):
+        gr.Markdown("### VCU Resources\n- [Counseling Services](https://counseling.vcu.edu/)")
 
 if __name__ == "__main__":
-    build_app().launch(share=True)
+    demo.launch()
