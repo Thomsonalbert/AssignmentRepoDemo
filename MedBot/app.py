@@ -56,7 +56,10 @@ def openai_generate(system_prompt: str, user_text: str) -> str:
 # ---- Chatbot interface ----
 def chatbot_interface(user_message, history=[]):
     if not session_state["logged_in"]:
-        history = history + [(user_message, "ERROR: Please log in first.")]
+        history = history + [
+            {"role": "user", "content": user_message},
+            {"role": "assistant", "content": "ERROR: Please log in first."}
+        ]
         return history, history
 
     msg = user_message.lower()
@@ -67,32 +70,34 @@ def chatbot_interface(user_message, history=[]):
             "CRISIS DETECTED: Please call 911 or dial 988 (Suicide & Crisis Lifeline) immediately.\n"
             "You may also reach out to VCU Counseling Services: https://counseling.vcu.edu/"
         )
-        history = history + [(user_message, response)]
+        history = history + [
+            {"role": "user", "content": user_message},
+            {"role": "assistant", "content": response}
+        ]
         return history, history
 
     # --- Therapy distress detection ---
-    if history and "Try grounding techniques" in history[-1][1]:
+    if history and "Try grounding techniques" in history[-1]["content"]:
         if "not working" in msg:
             response = (
                 "It seems the grounding strategies aren’t helping. "
                 "Please consider reaching out to a professional: https://counseling.vcu.edu/"
             )
-            history = history + [(user_message, response)]
-            return history, history
         elif any(k in msg for k in ["working", "better", "helped"]):
             response = (
                 "I’m glad to hear the grounding techniques are helping! "
                 "Remember, you can always return to them whenever you feel overwhelmed."
             )
-            history = history + [(user_message, response)]
-            return history, history
         else:
             response = (
                 "It seems you're still feeling distressed. "
                 "Please consider reaching out to a professional: https://counseling.vcu.edu/"
             )
-            history = history + [(user_message, response)]
-            return history, history
+        history = history + [
+            {"role": "user", "content": user_message},
+            {"role": "assistant", "content": response}
+        ]
+        return history, history
 
     # Initial distress detection
     if any(k in msg for k in ["panic", "anxiety", "overwhelmed", "stressed"]):
@@ -101,20 +106,29 @@ def chatbot_interface(user_message, history=[]):
             "Try grounding techniques: 5-4-3-2-1 method (5 things you see, 4 you touch, 3 you hear, "
             "2 you smell, 1 you taste). Take slow breaths while doing this."
         )
-        history = history + [(user_message, response)]
+        history = history + [
+            {"role": "user", "content": user_message},
+            {"role": "assistant", "content": response}
+        ]
         return history, history
 
     # --- Safety gate ---
     blocked = safety_gate(user_message)
     if blocked:
-        history = history + [(user_message, blocked)]
+        history = history + [
+            {"role": "user", "content": user_message},
+            {"role": "assistant", "content": blocked}
+        ]
         return history, history
 
     # --- General/medical routing ---
     mode = route(user_message)
     system_prompt = SYS_MEDICAL if mode == "medical" else SYS_GENERAL
     reply = openai_generate(system_prompt, user_message)
-    history = history + [(user_message, reply)]
+    history = history + [
+        {"role": "user", "content": user_message},
+        {"role": "assistant", "content": reply}
+    ]
     return history, history
 
 # ---- Gradio UI ----
@@ -147,9 +161,9 @@ with gr.Blocks() as demo:
 
         reg_button.click(register_user, [reg_email, reg_password, reg_confirm], reg_output)
 
-    # --- Chat Tab (always visible, but locked until login) ---
+    # --- Chat Tab ---
     with gr.Tab("Chat") as chat_tab:
-        chatbot = gr.Chatbot()
+        chatbot = gr.Chatbot(type="messages")
         msg = gr.Textbox(label="Your message")
         clear = gr.Button("Clear")
 
@@ -157,10 +171,19 @@ with gr.Blocks() as demo:
 
         msg.submit(chatbot_interface, [msg, state], [chatbot, state])
         clear.click(lambda: ([], []), None, [chatbot, state])
+        logout_chat = gr.Button("Exit Chat / Logout")
+        logout_status = gr.Textbox(label="Status")
+
+    def handle_chat_logout():
+        session_state["logged_in"] = False
+        session_state["user"] = None
+        return "SUCCESS: You have exited the chat. Please log in again."
+
+    logout_chat.click(handle_chat_logout, [], logout_status)
 
     # --- Resources Tab ---
     with gr.Tab("Resources"):
         gr.Markdown("### VCU Resources\n- [Counseling Services](https://counseling.vcu.edu/)")
 
 if __name__ == "__main__":
-    demo.launch()
+    demo.launch(share=True)
