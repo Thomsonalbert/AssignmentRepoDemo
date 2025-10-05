@@ -33,14 +33,14 @@ session_state = {"logged_in": False, "user": None}
 # ---- Safety + routing ----
 def safety_gate(text: str) -> str | None:
     t = text.lower()
-    if any(k in t for k in EMERGENCY_TERMS):
+    if any(keyword in t for keyword in EMERGENCY_TERMS):
         return "ERROR: Emergency detected. Call 911 or seek immediate medical help."
-    if any(k in t for k in DOSING_TERMS):
+    if any(keyword in t for keyword in DOSING_TERMS):
         return "ERROR: Dosing/prescription request detected. Consult a licensed clinician."
     return None
 
 def route(text: str) -> str:
-    return "medical" if any(k in text.lower() for k in MEDICAL_KEYWORDS) else "general"
+    return "medical" if any(keyword in text.lower() for keyword in MEDICAL_KEYWORDS) else "general"
 
 # ---- OpenAI call ----
 def openai_generate(system_prompt: str, user_text: str) -> str:
@@ -65,7 +65,7 @@ def chatbot_interface(user_message, history=[]):
     msg = user_message.lower()
 
     # --- Crisis detection ---
-    if any(k in msg for k in ["suicide", "kill myself", "end my life", "can't go on"]):
+    if any(keyword in msg for keyword in ["suicide", "kill myself", "end my life", "can't go on"]):
         response = (
             "CRISIS DETECTED: Please call 911 or dial 988 (Suicide & Crisis Lifeline) immediately.\n"
             "You may also reach out to VCU Counseling Services: https://counseling.vcu.edu/"
@@ -83,7 +83,7 @@ def chatbot_interface(user_message, history=[]):
                 "It seems the grounding strategies aren’t helping. "
                 "Please consider reaching out to a professional: https://counseling.vcu.edu/"
             )
-        elif any(k in msg for k in ["working", "better", "helped"]):
+        elif any(keyword in msg for keyword in ["working", "better", "helped"]):
             response = (
                 "I’m glad to hear the grounding techniques are helping! "
                 "Remember, you can always return to them whenever you feel overwhelmed."
@@ -100,7 +100,7 @@ def chatbot_interface(user_message, history=[]):
         return history, history
 
     # Initial distress detection
-    if any(k in msg for k in ["panic", "anxiety", "overwhelmed", "stressed"]):
+    if any(keyword in msg for keyword in ["panic", "anxiety", "overwhelmed", "stressed"]):
         response = (
             "Therapy Mode: I notice words that suggest distress. "
             "Try grounding techniques: 5-4-3-2-1 method (5 things you see, 4 you touch, 3 you hear, "
